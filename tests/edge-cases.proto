@@ -1,0 +1,141 @@
+// Not an upstream file: a synthetic one holding what the real samples lack - every name conflict the converter
+// settles and every shape it has to rewrite. Convert and validate it after changing the converter:
+//   dotnet out/Protobuf2AdHoc.dll tests tests/AdHoc && ./validate.sh tests/AdHoc
+syntax = "proto2";
+
+package edge.cases;
+
+import "imported/money.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "not/there.proto";                 // an import that is not found
+
+// Named like a type of org.unirail.Meta.
+message File {
+  optional string File = 1;               // a field named like its message
+  optional string type = 2;               // a keyword of TypeScript and Rust
+  optional string class = 3;
+  optional Type Type = 4;                 // a field named like its type
+
+  enum Type {                             // next to a field `type`
+    TEXT = 0;
+    BINARY = 1;
+  }
+}
+
+// Named like the hosts and like what the converter declares itself.
+message Client { optional int32 id = 1; }
+message Server { optional string host = 1; }
+message NoArg { optional bool none = 1; }
+message Duration { optional int64 nanos = 1; }
+
+// Differs from Client by case only.
+message client { optional bool legacy = 1; }
+
+// The same name as a message of the imported package.
+message Status {
+  optional string text = 1;
+  optional billing.v2.Status imported = 2;       // the imported one, by its full name
+  optional .billing.v2.Money price = 3;          // a leading dot: from the root
+  optional billing.v2.Status.Detail detail = 4;  // a type nested in an imported message
+}
+
+message Outer {
+  // Named like a top-level message: inside Outer the name means this one.
+  message Status {
+    optional bool ok = 1;
+  }
+
+  optional Status inner = 1;              // the nested one
+  optional .edge.cases.Status outer = 2;  // the top-level one
+
+  message Middle {
+    message Inner {
+      optional Status seen_from_inside = 1;   // found two scopes out
+    }
+    repeated Inner inners = 1;
+  }
+
+  // A group: a message and a field of it at once.
+  optional group Result = 3 {
+    optional string url = 1;
+  }
+
+  repeated group Item = 4 {
+    optional int32 n = 1;
+  }
+
+  extensions 100 to 199;
+}
+
+// Fields added to a message declared elsewhere.
+extend Outer {
+  optional string label = 100 [default = "none"];
+  optional int32 inner = 101;             // named like a field Outer has
+}
+
+message Holder {
+  extend Outer {
+    optional Holder holder = 102;         // typed with the message the block is written in
+  }
+}
+
+// An enum with one value, and a field of it.
+enum Single { ONLY = 0; }
+
+// Two names for one value.
+enum Aliased {
+  option allow_alias = true;
+  STARTED = 1;
+  RUNNING = 1;
+  STOPPED = 2;
+}
+
+message Shapes {
+  optional Single single = 1;
+  optional Aliased aliased = 2 [default = RUNNING];
+  optional Nothing nothing = 3;                    // a message with no fields
+  optional google.protobuf.Empty empty = 4;
+  map<bool, string> by_flag = 5;                   // a map keyed by a boolean
+  optional bytes blob = 6 [default = "\000\001\377"];
+  optional double ratio = 7 [default = 1.5];
+  optional float big = 8 [default = inf];
+  optional uint64 mask = 9 [default = 0xFFFFFFFFFFFFFFFF];
+  optional int32 negative = 10 [default = -7];
+  optional bool on = 11 [default = true];
+  required string must = 12;
+  optional Missing missing = 13;                   // declared in the import that is not found
+
+  // A oneof named like one of its alternatives, and like a field would be.
+  oneof Kind {
+    string Kind_name = 14;
+    int32 kind = 15;
+  }
+
+  // A oneof next to a nested type of the name its pack would take.
+  oneof choice {
+    string a = 16;
+    string b = 17;
+  }
+
+  message Choice { optional bool taken = 1; }
+  optional Choice choice_type = 18;
+}
+
+message Nothing {}
+
+message Ping { optional google.protobuf.Timestamp at = 1; }
+
+// Named like a message.
+service Status {
+  rpc Check(Ping) returns (Ping);
+}
+
+service Watch {
+  rpc Watch(Ping) returns (stream Ping);                               // a method named like its service
+  rpc Beat(stream google.protobuf.Empty) returns (google.protobuf.Empty);  // a stream of empty messages
+  rpc Nop(google.protobuf.Empty) returns (google.protobuf.Empty);      // nothing in, nothing out
+  rpc Fire(Nothing) returns (google.protobuf.Empty);                   // a message with no fields, one way
+  rpc End(Ping) returns (Nothing);                                     // named like a state of AdHoc
+  rpc OneWay(Ping) returns (Ping);                                     // named like the actor of the one-way calls
+}

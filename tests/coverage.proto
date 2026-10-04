@@ -1,0 +1,132 @@
+// Not an upstream file: a synthetic one that uses every construct the converter maps, once.
+// Convert and validate it after changing the converter:
+//   dotnet out/Protobuf2AdHoc.dll tests tests/AdHoc && ./validate.sh tests/AdHoc
+syntax = "proto3";
+
+package shop.v1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+option java_package = "com.example.shop.v1";
+option (shop.audience) = "internal";
+
+// Where an order is.
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_NEW = 1;
+  ORDER_STATUS_PAID = 2;
+  ORDER_STATUS_SHIPPED = 3 [deprecated = true];
+}
+
+// An order of a shop.
+message Order {
+  option deprecated = true;
+
+  // What a line of the order may be.
+  enum LineKind {
+    GOODS = 0;
+    SERVICE = 1;
+  }
+
+  // One line: a product and how many of it.
+  message Line {
+    string sku = 1;
+    uint32 quantity = 2;        // an unsigned varint
+    LineKind kind = 3;
+    sint64 discount = 4;        // a zigzag varint
+  }
+
+  string id = 1;
+  OrderStatus status = 2;
+  repeated Line lines = 3;
+  google.protobuf.Timestamp placed = 4;
+  google.protobuf.Duration valid_for = 5;
+  optional string note = 6;
+  map<string, int32> scores = 7;
+  map<uint64, Line> lines_by_id = 8;
+  bytes receipt = 9;
+  repeated bytes attachments = 10;
+  fixed64 revision = 11;
+  sfixed32 delta = 12;
+  double total = 13;
+  float weight = 14;
+  bool gift = 15 [deprecated = true];
+  google.protobuf.Int32Value priority = 16;
+  google.protobuf.StringValue coupon = 17;
+  google.protobuf.Any extra = 18;
+  google.protobuf.Struct labels = 19;
+  google.protobuf.FieldMask changed = 20;
+  google.protobuf.Empty marker = 21;
+  Customer customer = 22 [(shop.sensitive) = true];
+
+  // How the order is paid.
+  oneof payment {
+    string card = 23;
+    Cash cash = 24;
+  }
+
+  reserved 30, 40 to 49;
+  reserved "legacy";
+}
+
+message Cash {
+  int64 amount = 1;
+}
+
+message Customer {
+  string id = 1;
+  string name = 2;
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+message ListOrdersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+// Something that happened to an order: sent on its own, by no method.
+message OrderEvent {
+  string order_id = 1;
+  OrderStatus status = 2;
+}
+
+// The orders of a shop.
+service Orders {
+  option (shop.owner) = "orders-team";
+
+  // One order by its id.
+  rpc GetOrder(GetOrderRequest) returns (Order) {
+    option (google.api.http) = {
+      get: "/v1/orders/{id}"
+    };
+  }
+
+  // Places an order.
+  rpc CreateOrder(Order) returns (Order);
+
+  // Removes an order: nothing comes back.
+  rpc DeleteOrder(GetOrderRequest) returns (google.protobuf.Empty);
+
+  // Tells that the service is alive.
+  rpc Ping(google.protobuf.Empty) returns (Customer);
+
+  // The orders, one by one.
+  rpc ListOrders(ListOrdersRequest) returns (stream Order);
+
+  // Many orders in, one summary out.
+  rpc Import(stream Order) returns (Customer) {
+    option deprecated = true;
+  }
+
+  // A conversation about orders.
+  rpc Watch(stream GetOrderRequest) returns (stream Order);
+}

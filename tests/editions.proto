@@ -1,0 +1,24 @@
+// Not an upstream file: a synthetic one in the editions syntax, which has no labels `optional` and `required`:
+// whether a field knows that it was set is said by a feature.
+//   dotnet out/Protobuf2AdHoc.dll tests tests/AdHoc && ./validate.sh tests/AdHoc
+edition = "2023";
+
+package editions.test;
+
+message Reading {
+  int32 value = 1;                                                // explicit presence, the default of the edition
+  string unit = 2 [features.field_presence = IMPLICIT];           // as a proto3 field without a label
+  int64 sensor = 3 [features.field_presence = LEGACY_REQUIRED];   // as a proto2 `required`
+  repeated int32 samples = 4 [features.repeated_field_encoding = EXPANDED];
+  Reading previous = 5;                                           // a message: a pack is optional in AdHoc as it is
+  Level level = 6;
+
+  reserved old_value, older_value;                                // an edition reserves names without quotes
+}
+
+enum Level {
+  option features.enum_type = CLOSED;
+  LEVEL_UNKNOWN = 0;
+  LEVEL_LOW = 1;
+  LEVEL_HIGH = 2;
+}

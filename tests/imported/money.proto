@@ -1,0 +1,26 @@
+// Not an upstream file: what tests/edge-cases.proto imports. Another package with types of the same names.
+syntax = "proto3";
+
+package billing.v2;
+
+// An amount of money.
+message Money {
+  string currency = 1;
+  sint64 units = 2;
+}
+
+// Named like a message of the importing file.
+message Status {
+  int32 code = 1;
+
+  message Detail {
+    string text = 1;
+  }
+
+  repeated Detail details = 2;
+}
+
+// Not used by the importing file: it is not written out there.
+message Unused {
+  bool flag = 1;
+}
